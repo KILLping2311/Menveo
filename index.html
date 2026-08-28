@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Menveo Meningococcal Risk Dashboard</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:'Segoe UI',system-ui,sans-serif;
+    background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    color:#eaf2f4; min-height:100vh; padding:26px 16px 60px;
+  }
+  .wrap { max-width:960px; margin:0 auto; }
+  .banner-tag {
+    display:inline-block; background:rgba(79,209,197,.15); border:1px solid rgba(79,209,197,.4);
+    color:#8be9dc; padding:5px 14px; border-radius:20px; font-size:.72rem; font-weight:700;
+    letter-spacing:1px; text-transform:uppercase; margin-bottom:14px;
+  }
+  .header { text-align:center; margin-bottom:26px; }
+  h1 { font-size:2rem; margin-bottom:8px; }
+  .sub { color:#9fc4cf; font-size:.98rem; max-width:720px; margin:0 auto; line-height:1.5; }
+
+  .card {
+    background:rgba(255,255,255,.06); backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.12); border-radius:16px;
+    padding:24px; margin-bottom:22px;
+  }
+  .card h2.card-title { font-size:1.15rem; margin-bottom:4px; }
+  .card p.card-desc { font-size:.85rem; color:#9fc4cf; margin-bottom:18px; }
+
+  .factor-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:640px){ .factor-grid{grid-template-columns:1fr;} }
+
+  .factor > label { display:flex; align-items:center; gap:8px; font-weight:600; margin-bottom:10px; font-size:.95rem; }
+  .factor .hint { font-size:.72rem; color:#7fa6b0; font-weight:400; }
+
+  .region-sub { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  @media(max-width:640px){ .region-sub{grid-template-columns:1fr;} }
+  .region-sub .sub-lbl { font-size:.7rem; color:#7fa6b0; margin-bottom:4px; display:block; text-transform:uppercase; letter-spacing:.5px; }
+
+  select {
+    width:100%; padding:12px 14px; border-radius:10px; border:1px solid rgba(255,255,255,.2);
+    background:rgba(0,0,0,.28); color:#fff; font-size:.95rem; outline:none;
+  }
+  select:focus { border-color:#4fd1c5; box-shadow:0 0 0 3px rgba(79,209,197,.22); }
+  select:disabled { opacity:.5; cursor:not-allowed; }
+  select option { background:#1b3540; color:#fff; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip {
+    padding:8px 14px; border-radius:20px; border:1px solid rgba(255,255,255,.22);
+    background:rgba(0,0,0,.2); cursor:pointer; font-size:.85rem; transition:.15s; user-select:none;
+  }
+  .chip:hover { border-color:#4fd1c5; }
+  .chip.on { background:#4fd1c5; color:#08262e; border-color:#4fd1c5; font-weight:700; }
+
+  .go-btn {
+    margin-top:22px; width:100%; padding:15px; border:none; border-radius:10px;
+    background:#4fd1c5; color:#08262e; font-weight:700; font-size:1.05rem; cursor:pointer; transition:.2s;
+  }
+  .go-btn:hover { background:#38b2ac; }
+
+  #result { display:none; }
+  .risk-banner { padding:22px; border-radius:14px; margin-bottom:22px; text-align:center; position:relative; overflow:hidden; }
+  .risk-banner h2 { font-size:1.5rem; margin-bottom:4px; }
+  .risk-banner .score-line { font-size:.95rem; opacity:.92; }
+  .risk-VeryHigh { background:linear-gradient(135deg,#c0392b,#e74c3c); }
+  .risk-High     { background:linear-gradient(135deg,#d35400,#e67e22); }
+  .risk-Moderate { background:linear-gradient(135deg,#b7950b,#f1c40f); color:#2c2200; }
+  .risk-Low      { background:linear-gradient(135deg,#1e8449,#27ae60); }
+
+  .gauge-track { height:14px; background:rgba(0,0,0,.3); border-radius:10px; margin:16px auto 4px; max-width:520px; overflow:hidden; }
+  .gauge-fill { height:100%; border-radius:10px; transition:width 1s ease; }
+
+  .contrib { margin-bottom:12px; }
+  .contrib .lbl { display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:5px; }
+  .contrib .lbl .val { color:#9fc4cf; }
+  .bar-track { height:9px; background:rgba(0,0,0,.3); border-radius:6px; overflow:hidden; }
+  .bar-fill { height:100%; border-radius:6px; transition:width .9s ease; }
+
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media(max-width:640px){ .grid2{grid-template-columns:1fr;} }
+  .metric { background:rgba(0,0,0,.25); border-radius:12px; padding:16px; border-left:4px solid #4fd1c5; }
+  .metric h3 { font-size:.78rem; text-transform:uppercase; letter-spacing:1px; color:#9fc4cf; margin-bottom:6px; }
+  .metric p { font-size:.95rem; line-height:1.45; }
+
+  .section-title { font-weight:700; margin:24px 0 12px; font-size:1.12rem; }
+
+  ul.tips { list-style:none; }
+  ul.tips li { padding:9px 0 9px 28px; position:relative; font-size:.94rem; line-height:1.45; border-bottom:1px solid rgba(255,255,255,.06); }
+  ul.tips li:last-child { border-bottom:none; }
+  ul.tips li:before { content:"💉"; position:absolute; left:0; }
+
+  .convo-box {
+    background:linear-gradient(135deg,rgba(79,209,197,.14),rgba(79,209,197,.05));
+    border:1px solid rgba(79,209,197,.4); border-radius:14px; padding:22px; margin-top:8px;
+  }
+  .convo-box h3 { font-size:1.05rem; margin-bottom:10px; color:#8be9dc; }
+  .convo-box p { font-size:.94rem; line-height:1.5; margin-bottom:10px; }
+  .convo-box .quote { font-style:italic; border-left:3px solid #4fd1c5; padding-left:14px; color:#dff5f1; }
+
+  .disclaimer { font-size:.76rem; color:#8fb3bd; margin-top:24px; line-height:1.55; text-align:center; }
+  .footer-brand { text-align:center; margin-top:18px; font-size:.8rem; color:#9fc4cf; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <span class="banner-tag">World Immunization Week Launch • Live Year-Round</span>
+    <h1>🛡️ Menveo Meningococcal Risk Dashboard</h1>
+    <p class="sub">Meningococcal disease is often hidden by limited surveillance and underdiagnosis. This dashboard brings together the multiple factors that shape a child's exposure — region, season, accommodation, crowding, activities and individual factors — to make risk <strong>visible, discussable and actionable</strong> within the 2+ immunization conversation.</p>
+  </div>
+
+  <!-- INPUT CARD -->
+  <div class="card">
+    <h2 class="card-title">Build the Child's Risk Profile</h2>
+    <p class="card-desc">Enter the factors relevant to your patient. Each contributes to a composite meningococcal exposure picture.</p>
+
+    <div class="factor-grid">
+
+      <!-- Region (cascading) -->
+      <div class="factor" style="grid-column:1/-1;">
+        <label>🌍 Region — Where the Patient Currently Resides <span class="hint">(select country → state → city)</span></label>
+        <div class="region-sub">
+          <div>
+            <span class="sub-lbl">Country</span>
+            <select id="country"><option value="">Select country…</option></select>
+          </div>
+          <div>
+            <span class="sub-lbl">State / Province</span>
+            <select id="state" disabled><option value="">Select state…</option></select>
+          </div>
+          <div>
+            <span class="sub-lbl">City / District</span>
+            <select id="city" disabled><option value="">Select city…</option></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Season -->
+      <div class="factor">
+        <label>📅 Current Season</label>
+        <select id="season">
+          <option value="summer">Summer</option>
+          <option value="monsoon">Monsoon</option>
+          <option value="winter" selected>Winter</option>
+        </select>
+      </div>
+
+      <!-- Accommodation -->
+      <div class="factor">
+        <label>🏠 Accommodation</label>
+        <select id="accom">
+          <option value="household">Own household / low-density</option>
+          <option value="hostel">Shared / hostel / dormitory</option>
+          <option value="boarding">Boarding school / residential</option>
+          <option value="camp">Refugee / displacement camp</option>
+        </select>
+      </div>
+
+      <!-- Crowding -->
+      <div class="factor">
+        <label>👥 Crowding / Contact Setting</label>
+        <select id="crowd">
+          <option value="low">Low – mostly home / small family</option>
+          <option value="daycare" selected>Daycare / nursery / school</option>
+          <option value="mass">Mass gathering / pilgrimage / festival</option>
+          <option value="highdensity">High-density living environment</option>
+        </select>
+      </div>
+
+      <!-- Activities (multi) -->
+      <div class="factor" style="grid-column:1/-1;">
+        <label>🎒 Activities & Exposures <span class="hint">(select all that apply)</span></label>
+        <div class="chips" id="activityChips">
+          <div class="chip" data-w="2" data-key="travelEndemic">Travel to endemic region</div>
+          <div class="chip" data-w="3" data-key="pilgrimage">Pilgrimage / mass gathering</div>
+          <div class="chip" data-w="2" data-key="grouptravel">Group / school trip</div>
+          <div class="chip" data-w="2" data-key="closeContact">Close contact with a case</div>
+          <div class="chip" data-w="1" data-key="smoke">Household tobacco smoke exposure</div>
+          <div class="chip" data-w="1" data-key="respiratory">Recent respiratory infection</div>
+        </div>
+      </div>
+
+      <!-- Individual factors (multi) -->
+      <div class="factor" style="grid-column:1/-1;">
+        <label>🧬 Individual Factors <span class="hint">(select all that apply)</span></label>
+        <div class="chips" id="individualChips">
+          <div class="chip" data-w="1" data-key="ageInfant">Infant / young child (&lt;2 yrs)</div>
+          <div class="chip" data-w="1" data-key="adolescent">Adolescent (carriage peak)</div>
+          <div class="chip" data-w="3" data-key="asplenia">Asplenia / splenic dysfunction</div>
+          <div class="chip" data-w="3" data-key="complement">Complement deficiency / eculizumab</div>
+          <div class="chip" data-w="2" data-key="immuno">Immunocompromised</div>
+          <div class="chip" data-w="2" data-key="unvax">Incomplete immunization history</div>
+        </div>
+      </div>
+
+    </div>
+
+    <button class="go-btn" id="goBtn">Assess Composite Risk</button>
+  </div>
+
+  <!-- RESULT -->
+  <div id="result"></div>
+
+  <p class="disclaimer">⚠️ This dashboard provides general educational risk estimates based on regional epidemiology (e.g., the African "meningitis belt"), seasonality, crowding/contact patterns and recognised individual risk factors. It is a <strong>discussion aid, not medical advice or a diagnostic tool</strong>. Clinical decisions and vaccination recommendations should follow national immunization guidelines and individual patient assessment. Consult current WHO/CDC and local health authority guidance for outbreak data.</p>
+  <p class="footer-brand">Menveo Meningococcal Risk Dashboard · Launched during World Immunization Week · Available year-round to support the 2+ immunization conversation.</p>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+/* =========================================================
+   REGION-BASED MENINGOCOCCAL RISK MODEL (region tiers)
+   ========================================================= */
+const regionRisk = {
+  belt:      { level:"VeryHigh", score:4, incidence:"10–1000 / 100,000 during epidemics", note:"African meningitis belt with recurring seasonal epidemics; serogroups A, C, W, X." },
+  hajj:      { level:"High",     score:3, incidence:"Elevated during mass gatherings", note:"Global pilgrim convergence; Saudi Arabia mandates ACWY vaccination for pilgrims." },
+  subSaharan:{ level:"High",     score:3, incidence:"5–50 / 100,000", note:"Adjacent to / overlapping high-endemic regions with significant serogroup circulation." },
+  highIndia: { level:"High",     score:3, incidence:"Periodic outbreaks / higher local burden", note:"Higher-burden or outbreak-prone Indian regions with dense populations and mass-gathering exposure." },
+  midEast:   { level:"Moderate", score:2, incidence:"1–5 / 100,000", note:"Moderate endemic activity; rises with regional mass gatherings and cross-border travel." },
+  southAsia: { level:"Moderate", score:2, incidence:"1–5 / 100,000", note:"Periodic outbreaks; dense populations and pilgrimage travel increase transmission potential." },
+  seAsia:    { level:"Moderate", score:2, incidence:"<2 / 100,000", note:"Generally lower endemic rates but high, varied traveler inflow." },
+  latam:     { level:"Moderate", score:2, incidence:"0.5–2 / 100,000", note:"Sporadic outbreaks; serogroups B, C, W circulate variably." },
+  developed: { level:"Low",      score:1, incidence:"0.3–1 / 100,000", note:"Low endemic incidence with strong surveillance and vaccination programs; sporadic clusters possible." },
+  oceania:   { level:"Low",      score:1, incidence:"0.5–2 / 100,000", note:"Low endemic rates; occasional serogroup W/B clusters, well monitored." }
+};
+
+/* =========================================================
+   CASCADING REGION DATA: Country -> State -> City
+   Each city carries a region-tier key used by the model.
+   India-first (given Monsoon season), extendable.
+   ========================================================= */
+const geoData = {
+  "India": {
+    region:"southAsia",
+    states:{
+      "Delhi (NCT)":       { region:"highIndia", cities:{ "New Delhi":"highIndia", "Dwarka":"highIndia", "Rohini":"highIndia" } },
+      "Maharashtra":       { region:"southAsia", cities:{ "Mumbai":"highIndia", "Pune":"southAsia", "Nagpur":"southAsia" } },
+      "Uttar Pradesh":     { region:"highIndia", cities:{ "Lucknow":"highIndia", "Kanpur":"highIndia", "Varanasi":"highIndia", "Prayagraj (Kumbh)":"highIndia" } },
+      "West Bengal":       { region:"southAsia", cities:{ "Kolkata":"highIndia", "Howrah":"southAsia", "Siliguri":"southAsia" } },
+      "Tamil Nadu":        { region:"southAsia", cities:{ "Chennai":"southAsia", "Coimbatore":"southAsia", "Madurai":"southAsia" } },
+      "Karnataka":         { region:"southAsia", cities:{ "Bengaluru":"southAsia", "Mysuru":"southAsia", "Mangaluru":"southAsia" } },
+      "Rajasthan":         { region:"southAsia", cities:{ "Jaipur":"southAsia", "Jodhpur":"southAsia", "Ajmer":"southAsia" } },
+      "Bihar":             { region:"highIndia", cities:{ "Patna":"highIndia", "Gaya":"highIndia" } },
+      "Kerala":            { region:"southAsia", cities:{ "Thiruvananthapuram":"southAsia", "Kochi":"southAsia", "Kozhikode":"southAsia" } }
+    }
+  },
+  "Nigeria": {
+    region:"belt",
+    states:{
+      "Kano":    { region:"belt", cities:{ "Kano City":"belt" } },
+      "Lagos":   { region:"subSaharan", cities:{ "Lagos":"subSaharan", "Ikeja":"subSaharan" } },
+      "Sokoto":  { region:"belt", cities:{ "Sokoto":"belt" } },
+      "Kaduna":  { region:"belt", cities:{ "Kaduna":"belt", "Zaria":"belt" } }
+    }
+  },
+  "Saudi Arabia": {
+    region:"hajj",
+    states:{
+      "Makkah Region": { region:"hajj", cities:{ "Mecca":"hajj", "Jeddah":"hajj" } },
+      "Riyadh Region": { region:"midEast", cities:{ "Riyadh":"midEast" } },
+      "Madinah Region":{ region:"hajj", cities:{ "Medina":"hajj" } }
+    }
+  },
+  "United Kingdom": {
+    region:"developed",
+    states:{
+      "England":  { region:"developed", cities:{ "London":"developed", "Manchester":"developed", "Birmingham":"developed" } },
+      "Scotland": { region:"developed", cities:{ "Edinburgh":"developed", "Glasgow":"developed" } }
+    }
+  },
+  "United States": {
+    region:"developed",
+    states:{
+      "New York":   { region:"developed", cities:{ "New York City":"developed", "Buffalo":"developed" } },
+      "California": { region:"developed", cities:{ "Los Angeles":"developed", "San Francisco":"developed" } },
+      "Texas":      { region:"developed", cities:{ "Houston":"developed", "Dallas":"developed" } }
+    }
+  }
+};
+
+/* Populate country dropdown */
+const countrySel = document.getElementById('country');
+const stateSel   = document.getElementById('state');
+const citySel    = document.getElementById('city');
+
+Object.keys(geoData).sort().forEach(c=>{
+  const o=document.createElement('option'); o.value=c; o.textContent=c; countrySel.appendChild(o);
+});
+
+function resetSelect(sel, placeholder){
+  sel.innerHTML = '<option value="">'+placeholder+'</option>';
+}
+
+countrySel.addEventListener('change', ()=>{
+  resetSelect(stateSel,'Select state…');
+  resetSelect(citySel,'Select city…');
+  citySel.disabled = true;
+  const c = countrySel.value;
+  if(c && geoData[c]){
+    const states = geoData[c].states;
+    Object.keys(states).sort().forEach(s=>{
+      const o=document.createElement('option'); o.value=s; o.textContent=s; stateSel.appendChild(o);
+    });
+    stateSel.disabled = false;
+  } else {
+    stateSel.disabled = true;
+  }
+});
+
+stateSel.addEventListener('change', ()=>{
+  resetSelect(citySel,'Select city…');
+  const c = countrySel.value, s = stateSel.value;
+  if(c && s && geoData[c].states[s]){
+    const cities = geoData[c].states[s].cities;
+    Object.keys(cities).sort().forEach(ct=>{
+      const o=document.createElement('option'); o.value=ct; o.textContent=ct; citySel.appendChild(o);
+    });
+    citySel.disabled = false;
+  } else {
+    citySel.disabled = true;
+  }
+});
+
+/* Resolve the region tier from the most specific selection available */
+function resolveRegion(){
+  const c=countrySel.value, s=stateSel.value, ct=citySel.value;
+  if(!c) return { region:"developed", label:"Region not specified", known:null };
+  const country = geoData[c];
+  let region = country.region, parts=[c];
+  if(s && country.states[s]){
+    region = country.states[s].region;
+    parts.unshift(s);
+    if(ct && country.states[s].cities[ct]){
+      region = country.states[s].cities[ct];
+      parts.unshift(ct);
+    }
+  }
+  return { region, label:parts.join(", "), known:true };
+}
+
+/* =========================================================
+   SEASON / ACCOMMODATION / CROWDING WEIGHTS
+   ========================================================= */
+const seasonScore = { summer:2, monsoon:1, winter:1 };
+const seasonLabel = {
+  summer:"Summer (peak dry-season transmission risk)",
+  monsoon:"Monsoon (crowding indoors, post-monsoon respiratory spread)",
+  winter:"Winter (respiratory-season clustering)"
+};
+const accomScore = { household:0, hostel:2, boarding:2, camp:3 };
+const accomLabel = { household:"Own household / low-density", hostel:"Shared / hostel / dormitory", boarding:"Boarding / residential school", camp:"Refugee / displacement camp" };
+const crowdScore = { low:0, daycare:1, mass:3, highdensity:2 };
+const crowdLabel = { low:"Low contact setting", daycare:"Daycare / nursery / school", mass:"Mass gathering / pilgrimage", highdensity:"High-density living" };
+
+function levelFromScore(pct){
+  if(pct>=70) return "VeryHigh";
+  if(pct>=45) return "High";
+  if(pct>=22) return "Moderate";
+  return "Low";
+}
+const levelLabel = {VeryHigh:"Very High Risk",High:"High Risk",Moderate:"Moderate Risk",Low:"Low Risk"};
+
+/* CHIP toggles */
+document.querySelectorAll('.chips .chip').forEach(chip=>{
+  chip.addEventListener('click', ()=> chip.classList.toggle('on'));
+});
+function collectChips(id){
+  return [...document.querySelectorAll('#'+id+' .chip.on')].map(c=>({key:c.dataset.key, w:+c.dataset.w, label:c.textContent}));
+}
+
+const result = document.getElementById('result');
+document.getElementById('goBtn').addEventListener('click', assess);
+
+/* =========================================================
+   ASSESSMENT
+   ========================================================= */
+function assess(){
+  const res = resolveRegion();
+  const region = res.region;
+  const known = res.known;
+  const locationLabel = res.label;
+  const r = regionRisk[region];
+
+  const season = document.getElementById('season').value;
+  const accom  = document.getElementById('accom').value;
+  const crowd  = document.getElementById('crowd').value;
+  const activities = collectChips('activityChips');
+  const individual = collectChips('individualChips');
+
+  const actScore = activities.reduce((s,a)=>s+a.w,0);
+  const indScore = individual.reduce((s,a)=>s+a.w,0);
+
+  const comps = [
+    { name:"Region / endemicity", raw:r.score,            max:4, color:"#4fd1c5" },
+    { name:"Season / timing",     raw:seasonScore[season], max:2, color:"#5eead4" },
+    { name:"Accommodation",       raw:accomScore[accom],   max:3, color:"#38bdf8" },
+    { name:"Crowding / contact",  raw:crowdScore[crowd],   max:3, color:"#818cf8" },
+    { name:"Activities / exposures", raw:Math.min(actScore,6), max:6, color:"#f472b6" },
+    { name:"Individual factors",  raw:Math.min(indScore,6), max:6, color:"#fbbf24" }
+  ];
+
+  const weights = { "Region / endemicity":2.2, "Season / timing":1.0, "Accommodation":1.2, "Crowding / contact":1.2, "Activities / exposures":1.6, "Individual factors":1.8 };
+  let weightedSum=0, weightMax=0;
+  comps.forEach(c=>{ const w=weights[c.name]; weightedSum+=(c.raw/c.max)*w; weightMax+=w; });
+  const pct = Math.round((weightedSum/weightMax)*100);
+  const level = levelFromScore(pct);
+
+  const contribHTML = comps.map(c=>{
+    const frac = c.max? Math.round((c.raw/c.max)*100):0;
+    return `<div class="contrib">
+      <div class="lbl"><span>${c.name}</span><span class="val">${frac}%</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:0%;background:${c.color}" data-w="${frac}"></div></div>
+    </div>`;
+  }).join('');
+
+  const tips = [];
+  tips.push("Review the child's meningococcal vaccination status against national schedule (ACWY and, where indicated, MenB).");
+  if(individual.some(i=>i.key==="asplenia"||i.key==="complement"||i.key==="immuno"))
+    tips.push("<strong>Elevated individual risk</strong> (asplenia / complement deficiency / immunocompromise) — meningococcal vaccination is strongly indicated per guidelines.");
+  if(crowd==="mass" || activities.some(a=>a.key==="pilgrimage"))
+    tips.push("Mass-gathering / pilgrimage exposure — ACWY vaccination is often mandatory (e.g., Hajj/Umrah) and advisable ahead of travel.");
+  if(region==="belt" || region==="hajj" || region==="highIndia" || (known && r.level==="VeryHigh"))
+    tips.push("Residence in a higher-burden region — ensure timely vaccination and avoid crowded, poorly-ventilated settings during peak transmission periods.");
+  if(activities.some(a=>a.key==="closeContact"))
+    tips.push("Close contact with a case — assess need for post-exposure chemoprophylaxis alongside vaccination.");
+  if(season==="summer")
+    tips.push("Summer / dry conditions can favour transmission — a timely check-in on vaccination status is worthwhile.");
+  tips.push("Educate the family on warning signs: sudden fever, severe headache, stiff neck, photophobia, rash — seek urgent care.");
+  tips.push("Use this profile as a springboard to discuss meningococcal protection within the routine 2+ immunization visit.");
+
+  const convo = {
+    VeryHigh: "This child's profile shows several overlapping risk factors. This is an ideal moment to have a direct conversation about meningococcal protection.",
+    High:     "Multiple factors are stacking up here. Worth raising meningococcal vaccination proactively during this visit.",
+    Moderate: "A few modifiable and fixed factors are present. A brief conversation now can prevent a missed opportunity later.",
+    Low:      "Baseline risk appears low today — but exposure can change quickly with travel, season or setting. A short check-in keeps protection top of mind."
+  };
+
+  result.innerHTML = `
+    <div class="card">
+      <div class="risk-banner risk-${level}">
+        <h2>${locationLabel}${known===null?' <span style="font-size:.65rem;opacity:.85;">(region not specified — general estimate)</span>':''}</h2>
+        <div class="score-line">Composite Meningococcal Exposure: <strong>${levelLabel[level]}</strong> · Risk Index ${pct}/100</div>
+        <div class="gauge-track"><div class="gauge-fill" id="gaugeFill" style="width:0%;background:rgba(255,255,255,.85)"></div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="metric">
+          <h3>Regional Endemicity</h3>
+          <p><strong>${levelLabel[r.level]}</strong> — ${r.incidence}</p>
+          <p style="margin-top:6px;color:#9fc4cf;font-size:.85rem;">${r.note}</p>
+        </div>
+        <div class="metric">
+          <h3>Contextual Modifiers</h3>
+          <p>📅 ${seasonLabel[season]}<br>🏠 ${accomLabel[accom]}<br>👥 ${crowdLabel[crowd]}</p>
+        </div>
+      </div>
+
+      <div class="section-title">📊 What's Driving the Risk</div>
+      <p style="font-size:.85rem;color:#9fc4cf;margin-bottom:14px;">Each factor's contribution to this child's composite picture — helping surface risk that limited surveillance can miss.</p>
+      ${contribHTML}
+
+      <div class="section-title">💉 Clinical Actions & Recommendations</div>
+      <ul class="tips">${tips.map(t=>`<li>${t}</li>`).join('')}</ul>
+
+      <div class="section-title">💬 Bringing It Into the 2+ Conversation</div>
+      <div class="convo-box">
+        <h3>Discussion Prompt for the Caregiver</h3>
+        <p>${convo[level]}</p>
+        <p class="quote">"Based on where you're living (${locationLabel}), the current season, and ${individual.length||activities.length?'a few factors specific to your child':'their day-to-day environment'}, meningococcal disease is a risk worth protecting against. It's rare but serious — and there's a vaccine we can discuss today as part of their routine immunizations."</p>
+        <p style="font-size:.82rem;color:#9fc4cf;margin-bottom:0;">Making meningococcal risk <strong>visible, discussable and actionable</strong>.</p>
+      </div>
+    </div>
+  `;
+  result.style.display='block';
+
+  requestAnimationFrame(()=>{
+    setTimeout(()=>{
+      const g=document.getElementById('gaugeFill'); if(g) g.style.width=pct+'%';
+      document.querySelectorAll('.bar-fill').forEach(b=> b.style.width=b.dataset.w+'%');
+    },60);
+  });
+
+  result.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+}); // DOMContentLoaded
+</script>
+</body>
+</html>
